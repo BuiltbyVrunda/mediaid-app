@@ -1,21 +1,18 @@
 import datetime
 from flask import Flask, render_template, request, jsonify, session
-from flask_session import Session # For server-side sessions
+from flask_session import Session 
 import os
-import time # For simulating processing delay
+import time 
 
 app = Flask(__name__)
 
-# Configure Flask session for storing conversation state
-# A real application would use a more robust session store (e.g., Redis)
-app.config['SECRET_KEY'] = os.urandom(24) # Replace with a strong, permanent key in production
-app.config['SESSION_TYPE'] = 'filesystem' # Stores sessions in a file system (for development)
-app.config['SESSION_FILE_DIR'] = '/tmp/flask_session' # Directory to store session files
+
+app.config['SECRET_KEY'] = os.urandom(24) 
+app.config['SESSION_TYPE'] = 'filesystem' 
+app.config['SESSION_FILE_DIR'] = '/tmp/flask_session' 
 Session(app)
 
-# Enhanced symptom database with gentler language
-# This dictionary stores medical conditions, their symptoms, severity,
-# gentle titles, reassurance messages, first aid steps, and follow-up questions.
+.
 symptom_database = {
     # Critical conditions with gentle approach
     'chest discomfort': {
@@ -222,16 +219,15 @@ def analyze_user_input(user_input):
     for condition, data in symptom_database.items():
         score = 0
 
-        # Direct condition match
+       
         if condition in normalized_input:
             score += 10
 
-        # Symptom matching
+    
         for symptom in data['symptoms']:
             if symptom.lower() in normalized_input:
                 score += 5
 
-        # Partial word matching (for words longer than 3 characters)
         input_words = normalized_input.split(' ')
         for symptom_keyword in data['symptoms']:
             symptom_words = symptom_keyword.lower().split(' ')
@@ -326,7 +322,7 @@ def get_gentle_response(match_result, is_reassessed=False):
         ) if is_reassessed else (
             "Let me ask you a few gentle questions to better understand your situation and provide the most appropriate guidance."
         )
-    elif 'moderate' in severity: # Covers 'moderate' and 'mild-moderate'
+    elif 'moderate' in severity: 
         message += (
             "From what you've told me, this seems like something that would benefit from medical attention, "
             "though it may not be an emergency. You're taking the right steps by seeking guidance."
@@ -350,12 +346,11 @@ def get_gentle_response(match_result, is_reassessed=False):
         'gentle_title': data.get('gentle_title', condition.replace('_', ' ').title())
     }
 
-# --- Flask Routes ---
 
 @app.route('/')
 def index():
     """Serves the main HTML page."""
-    # Initialize session variables if they don't exist
+ 
     if 'questioning_mode' not in session:
         session['questioning_mode'] = None
     if 'question_index' not in session:
@@ -363,17 +358,16 @@ def index():
     if 'user_responses' not in session:
         session['user_responses'] = {}
     
-    # Initial bot message for the frontend
+
     initial_bot_message = {
         'type': 'bot',
         'content': "Hi! I'm MediAid, your caring health companion. I'm here to help you understand your symptoms and guide you through appropriate care steps. Please describe what you're experiencing, and I'll provide gentle, supportive guidance. Remember, I'm here to support you alongside professional medical care, not replace it.",
-        'timestamp': datetime.datetime.now().isoformat(), # Convert to ISO format for JS
-        'severity': 'mild', # Default severity for initial message
+        'timestamp': datetime.datetime.now().isoformat(), 
+        'severity': 'mild',
         'gentleTitle': 'Welcome'
     }
     return render_template('index.html', initial_message=initial_bot_message)
 
-# ...existing code...
 
 
 
@@ -393,14 +387,14 @@ def classify():
         'reassurance': response_data['message']
     })
 
-# ...existing code...
+
 
 @app.route('/chat', methods=['POST'])
 def chat():
     """Handles chat messages from the frontend."""
     user_input = request.json.get('message', '').strip()
     
-    # Simulate processing delay
+
     time.sleep(1.5)
 
     if not user_input:
@@ -412,7 +406,6 @@ def chat():
             'gentleTitle': 'Guidance'
         })
 
-    # Retrieve session state
     questioning_mode = session.get('questioning_mode')
     question_index = session.get('question_index', 0)
     user_responses = session.get('user_responses', {})
@@ -420,14 +413,14 @@ def chat():
     bot_response = {}
 
     if questioning_mode:
-        # If in questioning mode, process the user's answer to the current question
+       
         user_responses[question_index] = user_input
         session['user_responses'] = user_responses # Update session
 
         questions = get_critical_questions(questioning_mode)
 
         if question_index + 1 < len(questions):
-            # If there are more questions, ask the next one
+         
             session['question_index'] = question_index + 1
             next_question_content = questions[question_index + 1]
             bot_response = {
@@ -435,10 +428,10 @@ def chat():
                 'content': next_question_content,
                 'isQuestion': True,
                 'timestamp': datetime.datetime.now().isoformat(),
-                'gentleTitle': symptom_database[questioning_mode]['gentle_title'] # Keep title consistent
+                'gentleTitle': symptom_database[questioning_mode]['gentle_title'] 
             }
         else:
-            # All questions answered, perform final risk assessment and provide full response
+           
             reassessed_severity = assess_risk_after_questions(questioning_mode, user_responses)
             match_result = {'condition': questioning_mode, 'data': symptom_database[questioning_mode]}
             response_data = get_gentle_response(match_result, is_reassessed=True)
@@ -454,22 +447,22 @@ def chat():
                 'timestamp': datetime.datetime.now().isoformat()
             }
 
-            # Reset questioning mode
+         
             session['questioning_mode'] = None
             session['question_index'] = 0
             session['user_responses'] = {}
     else:
-        # Not in questioning mode, perform initial symptom analysis
+      
         match_result = analyze_user_input(user_input)
         response_data = get_gentle_response(match_result)
 
         if response_data['needs_questioning']:
-            # If initial analysis suggests critical and needs more questions
+        
             session['questioning_mode'] = match_result['condition']
-            session['question_index'] = 0 # Start from the first question
-            session['user_responses'] = {} # Clear previous responses
+            session['question_index'] = 0 
+            session['user_responses'] = {} 
 
-            # Initial bot message for critical conditions (reassurance/intro to questions)
+            
             initial_critical_message = {
                 'type': 'bot',
                 'content': response_data['message'],
@@ -478,24 +471,22 @@ def chat():
                 'gentleTitle': response_data['gentle_title'],
                 'timestamp': datetime.datetime.now().isoformat()
             }
-            # Send initial critical message first, then the question
-            # Frontend will need to handle receiving two messages or combine them
+            
             questions = get_critical_questions(match_result['condition'])
             if questions:
-                session['question_index'] = 0 # Ensure it's set to 0 for the first question
+                session['question_index'] = 0 
                 first_question_content = questions[0]
                 bot_response = {
                     'type': 'bot',
                     'content': first_question_content,
                     'isQuestion': True,
                     'timestamp': datetime.datetime.now().isoformat(),
-                    'gentleTitle': response_data['gentle_title'] # Keep title consistent
+                    'gentleTitle': response_data['gentle_title'] 
                 }
-                # For simplicity, we'll send the initial critical message and the first question as a list
-                # The frontend will need to process this list.
+                
                 return jsonify([initial_critical_message, bot_response])
             else:
-                # Fallback if a critical condition somehow has no questions defined
+                
                 bot_response = {
                     'type': 'bot',
                     'content': "No specific questions found, providing general advice. " + response_data['message'],
@@ -506,7 +497,7 @@ def chat():
                     'timestamp': datetime.datetime.now().isoformat()
                 }
         else:
-            # For mild/moderate cases, or if no questions are needed for critical
+            
             bot_response = {
                 'type': 'bot',
                 'content': response_data['message'],
@@ -521,7 +512,7 @@ def chat():
     return jsonify(bot_response)
 
 if __name__ == '__main__':
-    # Create the session directory if it doesn't exist
+    
     if not os.path.exists(app.config['SESSION_FILE_DIR']):
         os.makedirs(app.config['SESSION_FILE_DIR'])
-    app.run(debug=True) # debug=True enables auto-reloading and better error messages
+    app.run(debug=True) 
